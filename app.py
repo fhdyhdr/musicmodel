@@ -6,35 +6,40 @@ import joblib
 # Load model
 model = joblib.load('music_model.pkl')
 
-# Load dataset (pastikan dataset yang sama dengan model, tanpa label)
+# Load dataset
 @st.cache_data
 def load_data():
-    # Contoh fitur (gantilah sesuai dataset asli)
-    # Harus sama urutannya dengan data yang dipakai saat training model
-    data = pd.read_csv("music_features.csv", index_col=0)
-    return data
+    df = pd.read_csv('music_genre.csv')
+    return df
 
-data = load_data()
+df = load_data()
+
+# Ambil kolom fitur numerik untuk input model
+feature_columns = ['danceability', 'energy', 'loudness', 'speechiness', 
+                   'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
+X = df[feature_columns]
 
 st.title("🎵 Music Recommendation System")
-st.write("Pilih lagu, dan kami akan merekomendasikan lagu serupa.")
+st.write("Pilih lagu, dan kami akan merekomendasikan lagu serupa berdasarkan fitur audio.")
 
-# Dropdown pilihan lagu berdasarkan indeks dataset
-selected_song = st.selectbox("Pilih lagu:", data.index.tolist())
+# Pilih lagu dari nama
+selected_song = st.selectbox("Pilih Lagu:", df['song_name'])
 
-# Tombol untuk rekomendasi
+# Cari indeks dari lagu terpilih
+song_index = df[df['song_name'] == selected_song].index[0]
+
+# Rekomendasi saat tombol diklik
 if st.button("Rekomendasikan Lagu Serupa"):
-    # Ambil fitur lagu yang dipilih
-    selected_features = data.loc[selected_song].values.reshape(1, -1)
+    # Ambil fitur dari lagu yang dipilih
+    selected_features = X.loc[song_index].values.reshape(1, -1)
 
-    # Cari 5 lagu paling mirip
+    # Cari tetangga terdekat (termasuk dirinya sendiri)
     distances, indices = model.kneighbors(selected_features, n_neighbors=6)
 
-    # Tampilkan hasil (kecuali lagu itu sendiri)
-    st.subheader("🎧 Lagu Serupa yang Direkomendasikan:")
-    recommended = data.iloc[indices[0][1:]]  # [1:] untuk melewati lagu itu sendiri
-    for idx in recommended.index:
-        st.write(f"- {idx}")
+    st.subheader("🎧 Lagu yang Direkomendasikan:")
+    for i in indices[0][1:]:  # [1:] untuk menghindari lagu itu sendiri
+        st.markdown(f"- {df.loc[i, 'song_name']} ({df.loc[i, 'genre']})")
+
 
 
 
