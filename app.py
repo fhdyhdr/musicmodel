@@ -5,38 +5,33 @@ import joblib
 # Load model
 model = joblib.load('music_model.pkl')
 
-# Header
+st.set_page_config(page_title="Music Recommendation", layout="centered")
+
 st.title("🎵 Music Recommendation App")
-st.write("Cari lagu favoritmu dan dapatkan rekomendasi lagu serupa!")
+st.write("Masukkan informasi untuk mendapatkan rekomendasi genre musik.")
 
-# Contoh lagu yang tersedia (nama lagu harus sesuai dataset training)
-available_songs = [
-    "Song A", "Song B", "Song C", "Song D", "Song E"
-]
+# Contoh input: fitur numerik berdasarkan dataset pelatihan
+# Silakan sesuaikan label input sesuai dengan fitur model Anda
+age = st.slider("Umur", 10, 80, 25)
+gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
+education = st.selectbox("Pendidikan Terakhir", ["SMA", "Diploma", "S1", "S2/S3"])
 
-# Input dari user
-selected_song = st.selectbox("Pilih lagu favoritmu:", available_songs)
+# Preprocessing sederhana (ubah ke numerik)
+gender_num = 1 if gender == "Laki-laki" else 0
+education_map = {
+    "SMA": 0,
+    "Diploma": 1,
+    "S1": 2,
+    "S2/S3": 3
+}
+education_num = education_map[education]
+
+# Buat input array untuk prediksi
+user_input = np.array([[age, gender_num, education_num]])
 
 # Tombol prediksi
-if st.button("🎧 Rekomendasikan Lagu Serupa"):
-    try:
-        # Ubah lagu terpilih menjadi fitur numerik (simulasi)
-        # Misal kita punya fitur one-hot/embedding: model akan mengharapkan bentuk numerik
-        # Di sini kamu HARUS menyesuaikan input dengan apa yang digunakan saat training
+if st.button("Rekomendasikan Genre Musik"):
+    prediction = model.predict(user_input)
+    st.success(f"🎧 Rekomendasi Genre Musik: **{prediction[0]}**")
 
-        # Simulasi: Ambil index lagu sebagai input
-        song_index = available_songs.index(selected_song)
-        X_input = np.array([[song_index]])  # Model hanya menerima input numerik
-
-        # Prediksi
-        predictions = model.kneighbors(X_input, n_neighbors=5, return_distance=False)
-
-        # Tampilkan rekomendasi
-        st.subheader("🎶 Lagu Rekomendasi:")
-        for idx in predictions[0]:
-            if idx != song_index:  # Hindari lagu itu sendiri
-                st.write(f"- {available_songs[idx]}")
-
-    except Exception as e:
-        st.error(f"Terjadi kesalahan saat merekomendasikan: {e}")
 
