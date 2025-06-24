@@ -6,7 +6,7 @@ import joblib
 # Load model
 model = joblib.load('music_model.pkl')
 
-# Load dataset
+# Load data
 @st.cache_data
 def load_data():
     df = pd.read_csv('music_genre.csv')
@@ -14,35 +14,21 @@ def load_data():
 
 df = load_data()
 
-# Cek apakah kolom track_name dan genre ada
-if 'track_name' not in df.columns:
-    st.error("Dataset tidak memiliki kolom 'track_name'.")
-    st.stop()
+# Ambil semua kolom numerik (kecuali 'genre' jika ingin tampilkan)
+feature_columns = df.select_dtypes(include=[np.number]).columns.tolist()
+if 'duration_ms' in feature_columns and 'duration_ms' not in model.feature_names_in_:
+    feature_columns.remove('duration_ms')  # contoh pengecualian
 
-# Tentukan fitur numerik yang sesuai
-feature_columns = ['danceability', 'energy', 'key', 'loudness', 'mode',
-                   'speechiness', 'acousticness', 'instrumentalness',
-                   'liveness', 'valence', 'tempo', 'duration_ms', 'time_signature']
-
-# Pastikan semua kolom fitur tersedia
-missing_cols = [col for col in feature_columns if col not in df.columns]
-if missing_cols:
-    st.error(f"Kolom berikut hilang dari dataset: {missing_cols}")
-    st.stop()
+# Pastikan urutan kolom sama dengan saat pelatihan
+feature_columns = [col for col in model.feature_names_in_]  # pakai atribut dari model
 
 X = df[feature_columns]
 
-# UI
 st.title("🎵 Music Recommendation System")
-st.write("Pilih lagu berdasarkan nama, dan kami akan merekomendasikan lagu serupa berdasarkan fitur audio.")
+st.write("Pilih lagu berdasarkan nomor baris, dan kami akan merekomendasikan lagu serupa.")
 
-# Pilih berdasarkan nama lagu
-selected_track = st.selectbox("Pilih Lagu:", df['track_name'].unique().tolist())
+selected_index = st.selectbox("Pilih Lagu (Index):", df.index.tolist())
 
-# Ambil index dari lagu terpilih
-selected_index = df[df['track_name'] == selected_track].index[0]
-
-# Tombol rekomendasi
 if st.button("Rekomendasikan Lagu Serupa"):
     try:
         selected_features = X.loc[selected_index].values.reshape(1, -1)
@@ -50,11 +36,11 @@ if st.button("Rekomendasikan Lagu Serupa"):
 
         st.subheader("🎧 Lagu yang Direkomendasikan:")
         for i in indices[0][1:]:  # skip lagu itu sendiri
-            track = df.loc[i, 'track_name']
             genre = df.loc[i, 'genre'] if 'genre' in df.columns else 'Unknown'
-            st.markdown(f"- **{track}** ({genre})")
+            st.markdown(f"- Index: {i} | Genre: {genre}")
     except Exception as e:
         st.error(f"Terjadi kesalahan saat mencari rekomendasi: {e}")
+
 
 
 
