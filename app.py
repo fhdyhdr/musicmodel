@@ -18,7 +18,7 @@ df = load_music_data()
 st.title("🎧 Music Recommendation App")
 st.write("Pilih lagu dan dapatkan rekomendasi musik serupa berdasarkan fitur-fitur audio.")
 
-# Pastikan kolom fitur sesuai model
+# Ganti ke kolom yang benar dari dataset
 feature_columns = ['danceability', 'energy', 'loudness', 'speechiness', 'acousticness',
                    'instrumentalness', 'liveness', 'valence', 'tempo']
 title_column = 'track_name'
@@ -50,6 +50,7 @@ for i in indices[0]:
     if i != selected_index:
         recommended_title = df.iloc[i][title_column]
         st.write(f"- {recommended_title}")
+
 
 
 
