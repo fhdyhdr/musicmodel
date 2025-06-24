@@ -3,22 +3,30 @@ import numpy as np
 import pandas as pd
 import joblib
 
-# Load model dan data
+# Load model
 model = joblib.load('music_model.pkl')
-data = pd.read_csv('final_music_genre.csv')
+
+# Coba ambil fitur dari model
+try:
+    feature_columns = model.feature_names_in_
+except AttributeError:
+    st.error("Model tidak memiliki atribut 'feature_names_in_'. Harap pastikan model dilatih dengan scikit-learn >=1.0.")
+    st.stop()
 
 # Judul aplikasi
 st.title("🎵 Music Genre Recommendation App")
 st.write("Masukkan fitur-fitur musik untuk mendapatkan prediksi genre!")
 
-# Ambil hanya kolom fitur dari data (tanpa label)
-feature_columns = [col for col in data.columns if col != 'label']  # sesuaikan 'label' jika kolom genre bernama lain
-
 # Form input fitur
 user_input = {}
 for col in feature_columns:
-    # Asumsikan semua fitur numerik, bisa diubah jika perlu
-    val = st.number_input(f"{col}", min_value=float(data[col].min()), max_value=float(data[col].max()), value=float(data[col].mean()))
+    # Asumsi numerik, bisa disesuaikan untuk one-hot feature (0/1)
+    default_val = 0.0
+    if "music_genre_" in col:
+        default_val = 0.0
+        val = st.selectbox(f"{col}", [0, 1], index=0)
+    else:
+        val = st.number_input(f"{col}", value=default_val)
     user_input[col] = val
 
 # Prediksi jika tombol ditekan
@@ -26,5 +34,6 @@ if st.button("Rekomendasikan Genre Musik"):
     input_array = np.array([list(user_input.values())])
     prediction = model.predict(input_array)[0]
     st.success(f"🎧 Genre Musik yang Direkomendasikan: **{prediction}**")
+
 
 
