@@ -1,55 +1,33 @@
-import streamlit as st
 import pandas as pd
-import numpy as np
+from sklearn.neighbors import KNeighborsClassifier
 import joblib
 
-# Load model
-model = joblib.load('music_model.pkl')
+# Load dataset
+df = pd.read_csv('music_genre.csv')
 
-# Load dataset asli
-@st.cache_data
-def load_music_data():
-    df = pd.read_csv("music_genre.csv")
-    return df
+# Pilih hanya fitur yang dipakai di Streamlit app
+feature_columns = ['danceability', 'energy', 'loudness', 'speechiness',
+                   'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
 
-df = load_music_data()
+# Target dummy: kita butuh target untuk fit() walaupun rekomendasi nanti tidak pakai target
+# Jadi kita pakai genre saja jika tersedia
+if 'genre' in df.columns:
+    y = df['genre']
+else:
+    # Jika tidak ada, buat dummy target
+    y = [0] * len(df)
 
-# Tampilkan judul
-st.title("🎧 Music Recommendation App")
-st.write("Pilih lagu dan dapatkan rekomendasi musik serupa berdasarkan fitur-fitur audio.")
+X = df[feature_columns]
 
-# Ganti ke kolom yang benar dari dataset
-feature_columns = ['danceability', 'energy', 'loudness', 'speechiness', 'acousticness',
-                   'instrumentalness', 'liveness', 'valence', 'tempo']
-title_column = 'track_name'
+# Latih model KNN
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X, y)
 
-# Validasi kolom ada
-missing_cols = [col for col in feature_columns + [title_column] if col not in df.columns]
-if missing_cols:
-    st.error(f"Kolom berikut tidak ditemukan dalam dataset: {missing_cols}")
-    st.stop()
+# Simpan model
+joblib.dump(knn, 'music_model.pkl')
 
-# Dropdown lagu
-song_titles = df[title_column].dropna().unique()
-selected_song = st.selectbox("Pilih Lagu", song_titles)
+print("Model berhasil dilatih dan disimpan sebagai music_model.pkl")
 
-# Ambil data fitur dari lagu yang dipilih
-selected_index = df[df[title_column] == selected_song].index[0]
-selected_features = df.loc[selected_index, feature_columns].values.reshape(1, -1)
-
-# KNN: cari lagu terdekat
-try:
-    distances, indices = model.kneighbors(selected_features, n_neighbors=6)
-except ValueError as e:
-    st.error(f"Error saat mencari tetangga terdekat: {str(e)}")
-    st.stop()
-
-# Tampilkan rekomendasi (kecuali lagu itu sendiri)
-st.subheader("🎵 Rekomendasi Lagu Serupa:")
-for i in indices[0]:
-    if i != selected_index:
-        recommended_title = df.iloc[i][title_column]
-        st.write(f"- {recommended_title}")
 
 
 
