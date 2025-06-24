@@ -1,127 +1,45 @@
 import streamlit as st
+import joblib
 import numpy as np
-import pickle
-from sklearn.neighbors import NearestNeighbors
+import pandas as pd
 
-# Load the pre-trained model
-@st.cache_resource
-def load_model():
-    with open('music_model.pkl', 'rb') as file:
-        model = pickle.load(file)
-    return model
+# Load model
+model = joblib.load("music_model.pkl")
 
-model = load_model()
+# Contoh data lagu (harus sesuai urutan fiturnya dengan data pelatihan model)
+# Gantilah daftar ini dengan daftar lagu aslimu jika ada
+music_data = pd.DataFrame({
+    'title': [
+        'Let It Be', 'Bohemian Rhapsody', 'Imagine', 'Hotel California', 'Smells Like Teen Spirit',
+        'Billie Jean', 'Shape of You', 'Blinding Lights', 'Someone Like You', 'Lose Yourself'
+    ],
+    'feature1': [0.5, 0.8, 0.6, 0.7, 0.9, 0.85, 0.4, 0.6, 0.3, 0.7],
+    'feature2': [0.7, 0.6, 0.5, 0.8, 0.9, 0.9, 0.4, 0.5, 0.6, 0.8],
+    'feature3': [0.3, 0.9, 0.4, 0.6, 0.95, 0.8, 0.35, 0.65, 0.45, 0.75]
+})
 
-# Feature names (from the model)
-feature_names = [
-    'popularity', 'acousticness', 'danceability', 'duration_ms', 
-    'energy', 'instrumentalness', 'liveness', 'loudness', 
-    'speechiness', 'tempo', 'valence'
-]
+# Fitur yang digunakan untuk prediksi
+feature_columns = ['feature1', 'feature2', 'feature3']
 
-# Music genres (from the model)
-genres = [
-    'Anime', 'Blues', 'Classical', 'Country', 
-    'Electronic', 'Hip-Hop', 'Jazz', 'Rap'
-]
+# Streamlit App
+st.set_page_config(page_title="Music Recommender", layout="centered")
+st.title("🎵 Music Recommendation System")
 
-# Create the Streamlit app
-st.title('🎵 Music Recommendation System')
+# Dropdown pilih lagu
+selected_song = st.selectbox("Pilih lagu favoritmu:", music_data['title'].tolist())
 
-st.write("""
-This app recommends music tracks based on your preferences for various audio features.
-Adjust the sliders to set your preferences and get recommendations!
-""")
+if st.button("Rekomendasikan Lagu 🎧"):
+    # Ambil fitur dari lagu yang dipilih
+    selected_index = music_data[music_data['title'] == selected_song].index[0]
+    selected_features = music_data.loc[selected_index, feature_columns].values.reshape(1, -1)
 
-# Sidebar with user input
-st.sidebar.header('Your Music Preferences')
+    # Cari rekomendasi dengan model KNN
+    distances, indices = model.kneighbors(selected_features)
 
-# Create sliders for each feature
-user_input = {}
-for feature in feature_names:
-    if feature == 'duration_ms':
-        # Convert duration from ms to minutes for display
-        max_val = 10 * 60 * 1000  # 10 minutes in ms
-        default_val = 3 * 60 * 1000  # 3 minutes in ms
-        value = st.sidebar.slider(
-            f'{feature} (minutes)',
-            min_value=0.0,
-            max_value=10.0,
-            value=3.0,
-            step=0.5
-        )
-        user_input[feature] = value * 60 * 1000  # Convert back to ms
-    elif feature == 'tempo':
-        # Tempo typically ranges from 50 to 200 BPM
-        user_input[feature] = st.sidebar.slider(
-            f'{feature} (BPM)',
-            min_value=50.0,
-            max_value=200.0,
-            value=120.0,
-            step=1.0
-        )
-    else:
-        # Most features are between 0 and 1
-        user_input[feature] = st.sidebar.slider(
-            feature,
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.01
-        )
+    # Tampilkan hasil (hindari lagu yang dipilih sendiri)
+    st.subheader("Lagu yang Direkomendasikan:")
+    for i in range(1, len(indices[0])):
+        idx = indices[0][i]
+        st.write(f"🎵 {music_data.iloc[idx]['title']}")
 
-# Genre preference
-selected_genre = st.sidebar.selectbox('Preferred Genre', genres)
-
-# Convert user input to array format for the model
-input_array = np.array([[user_input[feature] for feature in feature_names]])
-
-# Add genre preference (one-hot encoded)
-genre_array = np.zeros(len(genres))
-genre_index = genres.index(selected_genre)
-genre_array[genre_index] = 1
-input_array = np.concatenate([input_array, genre_array.reshape(1, -1)], axis=1)
-
-# Recommendation button
-if st.sidebar.button('Get Recommendations'):
-    # Get nearest neighbors
-    distances, indices = model.kneighbors(input_array, n_neighbors=5)
-    
-    st.subheader('Recommended Tracks for You')
-    
-    # Display recommendations (in a real app, you'd have actual track data)
-    for i, (distance, index) in enumerate(zip(distances[0], indices[0])):
-        st.write(f"Recommendation #{i+1} (distance: {distance:.2f})")
-        
-        # Display feature values for the recommendation
-        recommended_features = model._fit_X[index]
-        
-        # Split features and genre probabilities
-        rec_features = recommended_features[:len(feature_names)]
-        rec_genres = recommended_features[len(feature_names):]
-        
-        # Create columns for better layout
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("**Audio Features:**")
-            for feature, value in zip(feature_names, rec_features):
-                st.write(f"- {feature}: {value:.3f}")
-        
-        with col2:
-            st.write("**Genre Probabilities:**")
-            for genre, prob in zip(genres, rec_genres):
-                if prob > 0.5:  # Only show likely genres
-                    st.write(f"- {genre}: {prob:.0%}")
-        
-        st.write("---")
-
-# Add some app info
-st.sidebar.markdown("""
----
-### About
-This recommendation system uses a k-nearest neighbors algorithm to find tracks with similar audio characteristics to your preferences.
-
-Adjust the sliders to explore different musical styles!
-""")
 
