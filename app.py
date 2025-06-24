@@ -14,28 +14,28 @@ def load_data():
 
 df = load_data()
 
-# Kolom fitur numerik
+# Kolom fitur numerik yang sesuai dengan pelatihan model
 feature_columns = ['danceability', 'energy', 'loudness', 'speechiness', 
                    'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
+
 X = df[feature_columns]
 
 st.title("🎵 Music Recommendation System")
-st.write("Pilih lagu (berdasarkan ID), dan kami akan merekomendasikan lagu serupa.")
+st.write("Pilih lagu (berdasarkan nomor baris), dan kami akan merekomendasikan lagu serupa berdasarkan fitur audio.")
 
-# Pilih lagu berdasarkan instance_id
-selected_song_id = st.selectbox("Pilih Lagu (ID):", df['instance_id'])
+# Dropdown: pilih berdasarkan indeks baris
+selected_index = st.selectbox("Pilih Lagu (Index):", df.index.tolist())
 
-# Cari indeks dari lagu terpilih
-song_index = df[df['instance_id'] == selected_song_id].index[0]
-
-# Rekomendasi saat tombol diklik
+# Tombol rekomendasi
 if st.button("Rekomendasikan Lagu Serupa"):
-    selected_features = X.loc[song_index].values.reshape(1, -1)
+    selected_features = X.loc[selected_index].values.reshape(1, -1)
     distances, indices = model.kneighbors(selected_features, n_neighbors=6)
 
     st.subheader("🎧 Lagu yang Direkomendasikan:")
-    for i in indices[0][1:]:  # skip lagu itu sendiri
-        st.markdown(f"- ID: {df.loc[i, 'instance_id']} | Genre: {df.loc[i, 'genre']}")
+    for i in indices[0][1:]:
+        genre = df.loc[i, 'genre']
+        st.markdown(f"- Index: {i} | Genre: {genre}")
+
 
 
 
