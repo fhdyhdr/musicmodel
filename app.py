@@ -1,32 +1,41 @@
+import streamlit as st
 import pandas as pd
-from sklearn.neighbors import KNeighborsClassifier
+import numpy as np
 import joblib
 
-# Load dataset
-df = pd.read_csv('music_genre.csv')
+# Load model
+model = joblib.load('music_model.pkl')
 
-# Pilih hanya fitur yang dipakai di Streamlit app
-feature_columns = ['danceability', 'energy', 'loudness', 'speechiness',
-                   'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
+# Load dataset (pastikan dataset yang sama dengan model, tanpa label)
+@st.cache_data
+def load_data():
+    # Contoh fitur (gantilah sesuai dataset asli)
+    # Harus sama urutannya dengan data yang dipakai saat training model
+    data = pd.read_csv("music_features.csv", index_col=0)
+    return data
 
-# Target dummy: kita butuh target untuk fit() walaupun rekomendasi nanti tidak pakai target
-# Jadi kita pakai genre saja jika tersedia
-if 'genre' in df.columns:
-    y = df['genre']
-else:
-    # Jika tidak ada, buat dummy target
-    y = [0] * len(df)
+data = load_data()
 
-X = df[feature_columns]
+st.title("🎵 Music Recommendation System")
+st.write("Pilih lagu, dan kami akan merekomendasikan lagu serupa.")
 
-# Latih model KNN
-knn = KNeighborsClassifier(n_neighbors=5)
-knn.fit(X, y)
+# Dropdown pilihan lagu berdasarkan indeks dataset
+selected_song = st.selectbox("Pilih lagu:", data.index.tolist())
 
-# Simpan model
-joblib.dump(knn, 'music_model.pkl')
+# Tombol untuk rekomendasi
+if st.button("Rekomendasikan Lagu Serupa"):
+    # Ambil fitur lagu yang dipilih
+    selected_features = data.loc[selected_song].values.reshape(1, -1)
 
-print("Model berhasil dilatih dan disimpan sebagai music_model.pkl")
+    # Cari 5 lagu paling mirip
+    distances, indices = model.kneighbors(selected_features, n_neighbors=6)
+
+    # Tampilkan hasil (kecuali lagu itu sendiri)
+    st.subheader("🎧 Lagu Serupa yang Direkomendasikan:")
+    recommended = data.iloc[indices[0][1:]]  # [1:] untuk melewati lagu itu sendiri
+    for idx in recommended.index:
+        st.write(f"- {idx}")
+
 
 
 
