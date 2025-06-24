@@ -1,44 +1,46 @@
 import streamlit as st
-import joblib
-import numpy as np
 import pandas as pd
+import numpy as np
+import joblib
 
-# Load model dan data
-model = joblib.load("music_model.pkl")
+# Load model KNN dari file pickle
+model = joblib.load('music_model.pkl')
 
-# Misalkan kita punya fitur dan daftar lagu
-# Ini perlu disesuaikan dengan fitur yang digunakan saat training
-# Contoh data dummy (ganti dengan data asli jika ada)
-music_data = pd.DataFrame({
-    'title': ['Lagu A', 'Lagu B', 'Lagu C', 'Lagu D', 'Lagu E'],
-    'feature1': [0.1, 0.2, 0.15, 0.4, 0.3],
-    'feature2': [0.8, 0.7, 0.75, 0.5, 0.6],
-    'feature3': [0.05, 0.07, 0.06, 0.03, 0.04]
-})
+# Simulasi data fitur musik (kamu bisa ganti dengan dataset aslinya)
+# Misalnya kita punya 100 lagu dengan 5 fitur
+# Kalau kamu punya data asli, ganti bagian ini dengan membaca dari CSV
+@st.cache_data
+def load_music_features():
+    # Contoh dummy dataset: ganti dengan dataset aslimu
+    np.random.seed(42)
+    df = pd.DataFrame(np.random.rand(100, 5), columns=['Danceability', 'Energy', 'Valence', 'Tempo', 'Acousticness'])
+    df['Title'] = [f"Song {i+1}" for i in range(len(df))]
+    return df
 
-# Ekstrak fitur dan judul lagu
-X = music_data.drop(columns=['title']).values
-titles = music_data['title'].values
+df_features = load_music_features()
 
-st.title("🎵 Sistem Rekomendasi Musik")
-st.write("Pilih sebuah lagu, dan sistem akan merekomendasikan musik yang serupa.")
+# UI Streamlit
+st.title("🎧 Music Recommendation App")
+st.write("Pilih lagu untuk mendapatkan rekomendasi musik serupa.")
 
-# Pilihan lagu
-selected_title = st.selectbox("Pilih Lagu:", titles)
+# Pilihan lagu dari judul
+selected_song = st.selectbox("Pilih Lagu", df_features['Title'].tolist())
 
 # Cari index lagu yang dipilih
-if selected_title:
-    selected_index = np.where(titles == selected_title)[0][0]
-    selected_features = X[selected_index].reshape(1, -1)
+selected_index = df_features[df_features['Title'] == selected_song].index[0]
 
-    # Temukan rekomendasi menggunakan model KNN
-    distances, indices = model.kneighbors(selected_features, n_neighbors=4)  # 1 lagu asli + 3 rekomendasi
+# Ambil fitur dari lagu yang dipilih
+selected_features = df_features.iloc[selected_index][['Danceability', 'Energy', 'Valence', 'Tempo', 'Acousticness']].values.reshape(1, -1)
 
-    # Tampilkan rekomendasi
-    st.subheader("🎧 Rekomendasi Musik:")
-    for idx in indices[0]:
-        if idx != selected_index:  # Hindari menampilkan lagu yang dipilih
-            st.write(f"- {titles[idx]}")
+# Prediksi lagu serupa
+distances, indices = model.kneighbors(selected_features, n_neighbors=6)  # +1 untuk menyertakan diri sendiri
+
+# Tampilkan hasil (kecuali diri sendiri)
+st.subheader("🎵 Rekomendasi Lagu Serupa:")
+for i in indices[0]:
+    if i != selected_index:
+        st.write(f"- {df_features.iloc[i]['Title']}")
+
 
 
 
