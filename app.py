@@ -1,39 +1,47 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
-import joblib
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Load model
-model = joblib.load('music_model.pkl')
+# Load data
+data = pd.read_csv("final_music_genre.csv")
 
-# Coba ambil fitur dari model
-try:
-    feature_columns = model.feature_names_in_
-except AttributeError:
-    st.error("Model tidak memiliki atribut 'feature_names_in_'. Harap pastikan model dilatih dengan scikit-learn >=1.0.")
+# Pastikan kolom nama lagu ada
+if 'track_name' not in data.columns:
+    st.error("Dataset tidak memiliki kolom 'track_name'. Harap tambahkan kolom tersebut.")
     st.stop()
 
+# Simpan nama lagu
+track_names = data['track_name'].tolist()
+
+# Ambil hanya kolom fitur numerik (kecuali kolom genre/nama)
+feature_columns = [col for col in data.columns if col not in ['track_name', 'label']]
+features = data[feature_columns]
+
+# Hitung similarity matrix (cosine similarity antar lagu)
+similarity = cosine_similarity(features)
+
 # Judul aplikasi
-st.title("🎵 Music Genre Recommendation App")
-st.write("Masukkan fitur-fitur musik untuk mendapatkan prediksi genre!")
+st.title("🎶 Rekomendasi Lagu Serupa")
+st.write("Pilih satu lagu untuk melihat rekomendasi lagu lain yang mirip.")
 
-# Form input fitur
-user_input = {}
-for col in feature_columns:
-    # Asumsi numerik, bisa disesuaikan untuk one-hot feature (0/1)
-    default_val = 0.0
-    if "music_genre_" in col:
-        default_val = 0.0
-        val = st.selectbox(f"{col}", [0, 1], index=0)
-    else:
-        val = st.number_input(f"{col}", value=default_val)
-    user_input[col] = val
+# Pilih lagu
+selected_track = st.selectbox("Pilih Lagu", track_names)
 
-# Prediksi jika tombol ditekan
-if st.button("Rekomendasikan Genre Musik"):
-    input_array = np.array([list(user_input.values())])
-    prediction = model.predict(input_array)[0]
-    st.success(f"🎧 Genre Musik yang Direkomendasikan: **{prediction}**")
+# Proses jika lagu dipilih
+if st.button("Tampilkan Rekomendasi"):
+    index = track_names.index(selected_track)
+    sim_scores = list(enumerate(similarity[index]))
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    
+    st.subheader("🎧 Rekomendasi Lagu Serupa:")
+    count = 0
+    for i, score in sim_scores[1:]:  # skip index 0 (itu dirinya sendiri)
+        st.write(f"{data.iloc[i]['track_name']} (Skor kemiripan: {score:.2f})")
+        count += 1
+        if count == 5:  # tampilkan 5 lagu
+            break
+
 
 
 
