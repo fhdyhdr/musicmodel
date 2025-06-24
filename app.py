@@ -1,134 +1,127 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
-import joblib  # Gunakan joblib yang lebih aman untuk model sklearn
+import pickle
+from sklearn.neighbors import NearestNeighbors
 
-# Load the trained model
+# Load the pre-trained model
 @st.cache_resource
 def load_model():
-    try:
-        model = joblib.load('music_model.pkl')  # Gunakan joblib
-        return model
-    except Exception as e:
-        st.error(f"Gagal memuat model: {e}")
-        return None
+    with open('music_model.pkl', 'rb') as file:
+        model = pickle.load(file)
+    return model
 
 model = load_model()
 
-# Feature names based on the model
+# Feature names (from the model)
 feature_names = [
     'popularity', 'acousticness', 'danceability', 'duration_ms', 
     'energy', 'instrumentalness', 'liveness', 'loudness', 
     'speechiness', 'tempo', 'valence'
 ]
 
-# Music genres the model can predict
+# Music genres (from the model)
 genres = [
     'Anime', 'Blues', 'Classical', 'Country', 
     'Electronic', 'Hip-Hop', 'Jazz', 'Rap'
 ]
 
 # Create the Streamlit app
-st.title('🎵 Music Genre Recommendation System')
+st.title('🎵 Music Recommendation System')
+
 st.write("""
-This app predicts the music genre based on audio features.
-Adjust the sliders to set the audio features and get a genre prediction.
+This app recommends music tracks based on your preferences for various audio features.
+Adjust the sliders to set your preferences and get recommendations!
 """)
 
-# Sidebar with user input features
-st.sidebar.header('Input Audio Features')
+# Sidebar with user input
+st.sidebar.header('Your Music Preferences')
 
-def user_input_features():
-    popularity = st.sidebar.slider('Popularity', 0, 100, 50)
-    acousticness = st.sidebar.slider('Acousticness', 0.0, 1.0, 0.5)
-    danceability = st.sidebar.slider('Danceability', 0.0, 1.0, 0.5)
-    duration_ms = st.sidebar.slider('Duration (ms)', 0, 600000, 180000, step=1000)
-    energy = st.sidebar.slider('Energy', 0.0, 1.0, 0.5)
-    instrumentalness = st.sidebar.slider('Instrumentalness', 0.0, 1.0, 0.5)
-    liveness = st.sidebar.slider('Liveness', 0.0, 1.0, 0.5)
-    loudness = st.sidebar.slider('Loudness (dB)', -60.0, 0.0, -20.0)
-    speechiness = st.sidebar.slider('Speechiness', 0.0, 1.0, 0.5)
-    tempo = st.sidebar.slider('Tempo (BPM)', 0.0, 250.0, 120.0)
-    valence = st.sidebar.slider('Valence (Positivity)', 0.0, 1.0, 0.5)
+# Create sliders for each feature
+user_input = {}
+for feature in feature_names:
+    if feature == 'duration_ms':
+        # Convert duration from ms to minutes for display
+        max_val = 10 * 60 * 1000  # 10 minutes in ms
+        default_val = 3 * 60 * 1000  # 3 minutes in ms
+        value = st.sidebar.slider(
+            f'{feature} (minutes)',
+            min_value=0.0,
+            max_value=10.0,
+            value=3.0,
+            step=0.5
+        )
+        user_input[feature] = value * 60 * 1000  # Convert back to ms
+    elif feature == 'tempo':
+        # Tempo typically ranges from 50 to 200 BPM
+        user_input[feature] = st.sidebar.slider(
+            f'{feature} (BPM)',
+            min_value=50.0,
+            max_value=200.0,
+            value=120.0,
+            step=1.0
+        )
+    else:
+        # Most features are between 0 and 1
+        user_input[feature] = st.sidebar.slider(
+            feature,
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            step=0.01
+        )
+
+# Genre preference
+selected_genre = st.sidebar.selectbox('Preferred Genre', genres)
+
+# Convert user input to array format for the model
+input_array = np.array([[user_input[feature] for feature in feature_names]])
+
+# Add genre preference (one-hot encoded)
+genre_array = np.zeros(len(genres))
+genre_index = genres.index(selected_genre)
+genre_array[genre_index] = 1
+input_array = np.concatenate([input_array, genre_array.reshape(1, -1)], axis=1)
+
+# Recommendation button
+if st.sidebar.button('Get Recommendations'):
+    # Get nearest neighbors
+    distances, indices = model.kneighbors(input_array, n_neighbors=5)
     
-    data = {
-        'popularity': popularity,
-        'acousticness': acousticness,
-        'danceability': danceability,
-        'duration_ms': duration_ms,
-        'energy': energy,
-        'instrumentalness': instrumentalness,
-        'liveness': liveness,
-        'loudness': loudness,
-        'speechiness': speechiness,
-        'tempo': tempo,
-        'valence': valence
-    }
+    st.subheader('Recommended Tracks for You')
     
-    features = pd.DataFrame(data, index=[0])
-    return features
+    # Display recommendations (in a real app, you'd have actual track data)
+    for i, (distance, index) in enumerate(zip(distances[0], indices[0])):
+        st.write(f"Recommendation #{i+1} (distance: {distance:.2f})")
+        
+        # Display feature values for the recommendation
+        recommended_features = model._fit_X[index]
+        
+        # Split features and genre probabilities
+        rec_features = recommended_features[:len(feature_names)]
+        rec_genres = recommended_features[len(feature_names):]
+        
+        # Create columns for better layout
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Audio Features:**")
+            for feature, value in zip(feature_names, rec_features):
+                st.write(f"- {feature}: {value:.3f}")
+        
+        with col2:
+            st.write("**Genre Probabilities:**")
+            for genre, prob in zip(genres, rec_genres):
+                if prob > 0.5:  # Only show likely genres
+                    st.write(f"- {genre}: {prob:.0%}")
+        
+        st.write("---")
 
-input_df = user_input_features()
-
-# Display the user input features
-st.subheader('User Input Features')
-st.write(input_df)
-
-if model:
-    # Make prediction
-    prediction = model.predict(input_df)
-    prediction_proba = model.predict_proba(input_df)
-
-    st.subheader('Prediction')
-    predicted_genre = genres[prediction[0]]
-    st.write(f'Predicted Genre: **{predicted_genre}**')
-
-    # Show prediction probabilities
-    st.subheader('Prediction Probability')
-    proba_df = pd.DataFrame({
-        'Genre': genres,
-        'Probability': prediction_proba[0]
-    })
-    proba_df = proba_df.sort_values('Probability', ascending=False)
-
-    # Display as bar chart
-    st.bar_chart(proba_df.set_index('Genre'))
-
-    # Genre descriptions
-    genre_descriptions = {
-        'Anime': 'Music from Japanese anime, often featuring high-energy pop or orchestral elements.',
-        'Blues': 'Rooted in African-American traditions, featuring soulful vocals and guitar work.',
-        'Classical': 'Orchestral and instrumental music with complex compositions.',
-        'Country': 'Storytelling songs with acoustic guitars and folk influences.',
-        'Electronic': 'Created with electronic instruments and technology, often for dancing.',
-        'Hip-Hop': 'Rhythmic music with rhyming speech (rapping) and strong beats.',
-        'Jazz': 'Improvisational music with swing and blue notes, complex chords.',
-        'Rap': 'Rhythmic and rhyming speech performed over beats.'
-    }
-
-    st.subheader('About the Predicted Genre')
-    st.write(genre_descriptions[predicted_genre])
-
-    # Sample artists
-    sample_artists = {
-        'Anime': ['Yoko Kanno', 'Hiroyuki Sawano', 'Lisa', 'Aimer'],
-        'Blues': ['B.B. King', 'Muddy Waters', 'Etta James', 'Robert Johnson'],
-        'Classical': ['Mozart', 'Beethoven', 'Bach', 'Chopin'],
-        'Country': ['Johnny Cash', 'Dolly Parton', 'Willie Nelson', 'Taylor Swift'],
-        'Electronic': ['Daft Punk', 'The Chemical Brothers', 'Deadmau5', 'Aphex Twin'],
-        'Hip-Hop': ['Kendrick Lamar', 'Nas', 'OutKast', 'Wu-Tang Clan'],
-        'Jazz': ['Miles Davis', 'John Coltrane', 'Ella Fitzgerald', 'Duke Ellington'],
-        'Rap': ['Eminem', 'Jay-Z', 'Tupac', 'Notorious B.I.G.']
-    }
-
-    st.subheader('Sample Artists in This Genre')
-    st.write(", ".join(sample_artists[predicted_genre]))
-
-# Footer
-st.markdown("""
+# Add some app info
+st.sidebar.markdown("""
 ---
-Built with ❤️ using Streamlit  
-Model: KNeighborsClassifier  
-Features: Spotify audio features
+### About
+This recommendation system uses a k-nearest neighbors algorithm to find tracks with similar audio characteristics to your preferences.
+
+Adjust the sliders to explore different musical styles!
 """)
 
