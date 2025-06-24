@@ -3,32 +3,34 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Load data
-df_raw = pd.read_csv("music_genre.csv")              # ada 'track_name'
-df_final = pd.read_csv("final_music_genre.csv")      # hasil preprocessing (fitur numerik)
+# Load data preprocessed (fitur untuk similarity)
+final_data = pd.read_csv("final_music_genre.csv")
 
-# Tambahkan kolom track_name dari dataset mentah
-if 'track_name' in df_raw.columns:
-    df_final['track_name'] = df_raw['track_name']
+# Load data mentah (berisi nama lagu)
+raw_data = pd.read_csv("music_genre.csv")
+
+# Tambahkan kolom track_name dari raw ke final (asumsi urutan sama)
+if 'track_name' in raw_data.columns:
+    final_data['track_name'] = raw_data['track_name']
 else:
     st.error("Kolom 'track_name' tidak ditemukan di music_genre.csv")
     st.stop()
 
-# Simpan nama lagu
-track_names = df_final['track_name'].tolist()
+# Siapkan data
+track_names = final_data['track_name'].tolist()
 
-# Ambil fitur numerik (tanpa label dan nama lagu)
-feature_columns = [col for col in df_final.columns if col not in ['track_name', 'label']]
-features = df_final[feature_columns]
+# Ambil kolom fitur (tanpa label dan track_name)
+feature_columns = [col for col in final_data.columns if col not in ['label', 'track_name']]
+features = final_data[feature_columns]
 
-# Hitung cosine similarity antar lagu
+# Hitung similarity
 similarity = cosine_similarity(features)
 
 # Judul aplikasi
 st.title("🎶 Rekomendasi Lagu Serupa")
-st.write("Pilih satu lagu untuk melihat rekomendasi lagu lain yang mirip.")
+st.write("Pilih satu lagu untuk melihat rekomendasi lagu lain yang mirip berdasarkan fitur audio.")
 
-# Pilih lagu
+# Pilihan lagu
 selected_track = st.selectbox("Pilih Lagu", track_names)
 
 # Tampilkan rekomendasi saat tombol diklik
@@ -37,13 +39,14 @@ if st.button("Tampilkan Rekomendasi"):
     sim_scores = list(enumerate(similarity[index]))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
-    st.subheader("🎧 Rekomendasi Lagu Serupa:")
+    st.subheader("🎧 Lagu yang Mirip:")
     count = 0
-    for i, score in sim_scores[1:]:  # Skip lagu itu sendiri
-        st.write(f"{df_final.iloc[i]['track_name']} (Skor kemiripan: {score:.2f})")
+    for i, score in sim_scores[1:]:  # skip diri sendiri
+        st.write(f"**{final_data.iloc[i]['track_name']}** (Skor kemiripan: {score:.2f})")
         count += 1
         if count == 5:
             break
+
 
 
 
