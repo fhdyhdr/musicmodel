@@ -16,7 +16,6 @@ selected_track = st.selectbox("Pilih lagu favoritmu:", track_names)
 if st.button("Rekomendasikan Lagu Serupa"):
     # Temukan index dari lagu yang dipilih
     idx = track_names.index(selected_track)
-    query = np.array(features[idx]).reshape(1, -1)
     distances, indices = model.kneighbors(query, n_neighbors=6)
 
 
