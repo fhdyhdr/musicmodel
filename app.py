@@ -14,22 +14,24 @@ def load_data():
 
 df = load_data()
 
-# Ambil fitur numerik dari model
+# Cek apakah kolom track_name ada
+if 'track_name' not in df.columns:
+    st.error("❌ Kolom 'track_name' tidak ditemukan dalam file CSV.")
+    st.stop()
+
+# Cek apakah ada nilai NaN pada track_name
+df = df.dropna(subset=['track_name'])
+
+# Ambil fitur yang digunakan oleh model
 feature_columns = list(model.feature_names_in_)
 X = df[feature_columns]
 
-# Pastikan track_name tersedia
-if 'track_name' not in df.columns:
-    st.error("Kolom 'track_name' tidak ditemukan dalam dataset.")
-    st.stop()
-
 st.title("🎵 Music Recommendation System")
-st.write("Pilih lagu berdasarkan nama, dan kami akan merekomendasikan lagu serupa berdasarkan fitur audio.")
+st.write("Pilih lagu berdasarkan nama, dan kami akan merekomendasikan lagu serupa.")
 
-# Pilih berdasarkan nama lagu
 selected_track = st.selectbox("Pilih Lagu:", df['track_name'].unique())
 
-# Cari index lagu berdasarkan track_name
+# Cari index dari track yang dipilih
 selected_index = df[df['track_name'] == selected_track].index[0]
 
 if st.button("Rekomendasikan Lagu Serupa"):
@@ -38,12 +40,13 @@ if st.button("Rekomendasikan Lagu Serupa"):
         distances, indices = model.kneighbors(selected_features, n_neighbors=6)
 
         st.subheader("🎧 Lagu Serupa yang Direkomendasikan:")
-        for i in indices[0][1:]:  # Skip lagu itu sendiri
-            title = df.iloc[i]['track_name']
+        for i in indices[0][1:]:
+            track = df.iloc[i]['track_name']
             genre = df.iloc[i]['genre'] if 'genre' in df.columns else 'Tidak diketahui'
-            st.markdown(f"- 🎵 **{title}** | Genre: *{genre}*")
+            st.markdown(f"- 🎵 **{track}** | Genre: *{genre}*")
     except Exception as e:
         st.error(f"Terjadi kesalahan saat mencari rekomendasi: {e}")
+
 
 
 
