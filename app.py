@@ -1,37 +1,44 @@
 import streamlit as st
-import numpy as np
 import joblib
+import numpy as np
+import pandas as pd
 
-# Load model
-model = joblib.load('music_model.pkl')
+# Load model dan data
+model = joblib.load("music_model.pkl")
 
-st.set_page_config(page_title="Music Recommendation", layout="centered")
+# Misalkan kita punya fitur dan daftar lagu
+# Ini perlu disesuaikan dengan fitur yang digunakan saat training
+# Contoh data dummy (ganti dengan data asli jika ada)
+music_data = pd.DataFrame({
+    'title': ['Lagu A', 'Lagu B', 'Lagu C', 'Lagu D', 'Lagu E'],
+    'feature1': [0.1, 0.2, 0.15, 0.4, 0.3],
+    'feature2': [0.8, 0.7, 0.75, 0.5, 0.6],
+    'feature3': [0.05, 0.07, 0.06, 0.03, 0.04]
+})
 
-st.title("🎵 Music Recommendation App")
-st.write("Masukkan informasi untuk mendapatkan rekomendasi genre musik.")
+# Ekstrak fitur dan judul lagu
+X = music_data.drop(columns=['title']).values
+titles = music_data['title'].values
 
-# Contoh input: fitur numerik berdasarkan dataset pelatihan
-# Silakan sesuaikan label input sesuai dengan fitur model Anda
-age = st.slider("Umur", 10, 80, 25)
-gender = st.selectbox("Jenis Kelamin", ["Laki-laki", "Perempuan"])
-education = st.selectbox("Pendidikan Terakhir", ["SMA", "Diploma", "S1", "S2/S3"])
+st.title("🎵 Sistem Rekomendasi Musik")
+st.write("Pilih sebuah lagu, dan sistem akan merekomendasikan musik yang serupa.")
 
-# Preprocessing sederhana (ubah ke numerik)
-gender_num = 1 if gender == "Laki-laki" else 0
-education_map = {
-    "SMA": 0,
-    "Diploma": 1,
-    "S1": 2,
-    "S2/S3": 3
-}
-education_num = education_map[education]
+# Pilihan lagu
+selected_title = st.selectbox("Pilih Lagu:", titles)
 
-# Buat input array untuk prediksi
-user_input = np.array([[age, gender_num, education_num]])
+# Cari index lagu yang dipilih
+if selected_title:
+    selected_index = np.where(titles == selected_title)[0][0]
+    selected_features = X[selected_index].reshape(1, -1)
 
-# Tombol prediksi
-if st.button("Rekomendasikan Genre Musik"):
-    prediction = model.predict(user_input)
-    st.success(f"🎧 Rekomendasi Genre Musik: **{prediction[0]}**")
+    # Temukan rekomendasi menggunakan model KNN
+    distances, indices = model.kneighbors(selected_features, n_neighbors=4)  # 1 lagu asli + 3 rekomendasi
+
+    # Tampilkan rekomendasi
+    st.subheader("🎧 Rekomendasi Musik:")
+    for idx in indices[0]:
+        if idx != selected_index:  # Hindari menampilkan lagu yang dipilih
+            st.write(f"- {titles[idx]}")
+
 
 
