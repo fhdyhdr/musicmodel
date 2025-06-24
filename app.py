@@ -21,7 +21,7 @@ st.write("Pilih lagu dan dapatkan rekomendasi musik serupa berdasarkan fitur-fit
 # Pastikan kolom fitur sesuai model
 feature_columns = ['danceability', 'energy', 'loudness', 'speechiness', 'acousticness',
                    'instrumentalness', 'liveness', 'valence', 'tempo']
-title_column = 'title'
+title_column = 'track_name'
 
 # Validasi kolom ada
 missing_cols = [col for col in feature_columns + [title_column] if col not in df.columns]
