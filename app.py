@@ -9,34 +9,42 @@ model = joblib.load('music_model.pkl')
 # Load data lengkap
 @st.cache_data
 def load_data():
-    df = pd.read_csv('music_genre.csv')
+    try:
+        df = pd.read_csv('music_genre.csv')
+    except UnicodeDecodeError:
+        df = pd.read_csv('music_genre.csv', encoding='latin1')  # fallback encoding
     return df
 
-df_full = load_data()
+df_raw = load_data()
 
-# Pastikan kolom track_name ada
-if 'track_name' not in df_full.columns:
-    st.error("❌ Kolom 'track_name' tidak ditemukan di dalam dataset.")
+# Normalisasi nama kolom agar tidak sensitif
+df_raw.columns = [col.strip().lower() for col in df_raw.columns]
+
+# Cek nama kolom sebenarnya
+if 'track_name' not in df_raw.columns:
+    st.error("❌ Kolom 'track_name' tidak ditemukan. Kolom yang tersedia: " + ", ".join(df_raw.columns))
     st.stop()
 
-# Hapus baris dengan nilai kosong di track_name
-df_full = df_full[df_full['track_name'].notna()]
+# Hapus baris kosong di track_name
+df_full = df_raw[df_raw['track_name'].notna()].copy()
 
 # Ambil nama kolom fitur dari model
 try:
     feature_columns = list(model.feature_names_in_)
 except AttributeError:
-    st.error("❌ Model tidak menyimpan informasi fitur. Pastikan menggunakan scikit-learn 1.0+ dan model disimpan setelah training.")
+    st.error("❌ Model tidak menyimpan informasi fitur. Pastikan menggunakan scikit-learn 1.0+.")
+    st.stop()
+
+# Cek semua kolom fitur tersedia
+missing_cols = [col for col in feature_columns if col not in df_full.columns]
+if missing_cols:
+    st.error(f"❌ Kolom fitur berikut tidak ditemukan di CSV: {missing_cols}")
     st.stop()
 
 # Ambil hanya kolom fitur
-try:
-    df_features = df_full[feature_columns]
-except KeyError as e:
-    st.error(f"❌ Kolom berikut tidak ditemukan di CSV: {e}")
-    st.stop()
+df_features = df_full[feature_columns]
 
-# Sinkronkan indeks df_features dan df_full
+# Sinkronkan index
 df_features = df_features.loc[df_full.index]
 
 # UI Streamlit
@@ -62,6 +70,7 @@ if st.button("Rekomendasikan Lagu Serupa"):
             st.markdown(f"- 🎵 **{title}** | Genre: *{genre}*")
     except Exception as e:
         st.error(f"❌ Terjadi kesalahan saat mencari rekomendasi: {e}")
+
 
 
 
